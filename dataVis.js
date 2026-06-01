@@ -199,16 +199,16 @@ function clear(){
 
 //Create Table
 function CreateDataTable(_data) {
-            let table = dataTable.append("table").attr("class", "data-table");
+            let table = dataTable.append("table").attr("class", "dataTableClass");
             let header = table.append("thead").append("tr");
             _data.columns.forEach(function(column) {
-                header.append("th").text(column);
+                header.append("th").text(column).attr("class", "tableHeaderClass");
             });
             let body = table.append("tbody");
             _data.forEach(function(row) {
                 let tr = body.append("tr");
                 _data.columns.forEach(function(column) {
-                    tr.append("td").text(row[column]);
+                    tr.append("td").text(row[column]).attr("class", "tableBodyClass");
                 });
             });
             console.log(table);
