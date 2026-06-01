@@ -88,10 +88,10 @@ function init() {
             console.log("dimensions: ", dimensions);
 
             // TODO: parse reader.result data and call the init functions with the parsed data!
-            initVis(null);
-            CreateDataTable(null);
-            // TODO: possible place to call the dashboard file for Part 2
-            initDashboard(null);
+            initVis(data);
+            CreateDataTable(data);
+
+            initDashboard(data);
         };
         reader.readAsBinaryString(fileInput.files[0]);
     };
@@ -199,12 +199,19 @@ function clear(){
 
 //Create Table
 function CreateDataTable(_data) {
-
-    // TODO: create table and add class
-
-    // TODO: add headers, row & columns
-
-    // TODO: add mouseover event
+            let table = dataTable.append("table").attr("class", "data-table");
+            let header = table.append("thead").append("tr");
+            _data.columns.forEach(function(column) {
+                header.append("th").text(column);
+            });
+            let body = table.append("tbody");
+            _data.forEach(function(row) {
+                let tr = body.append("tr");
+                _data.columns.forEach(function(column) {
+                    tr.append("td").text(row[column]);
+                });
+            });
+            console.log(table);
 
 }
 function renderScatterplot(){
