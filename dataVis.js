@@ -26,8 +26,9 @@ let margin, width, height, radius;
 // svg containers
 let scatter, radar, dataTable;
 
-// Add additional variables
-
+let x, y, r;
+let data;
+let tooltip;
 
 function init() {
     // define size of plots
@@ -48,6 +49,11 @@ function init() {
         .attr("height", height)
         .append("g");
 
+    // tooltip
+    tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
     // radar chart SVG container and axes
     radar = d3.select("#radar").append("svg")
         .attr("width", width)
@@ -66,7 +72,7 @@ function init() {
             console.log("data loaded: ");
             console.log(reader.result);
             //parse raw CSV text into an array of objects, where the header row is used as object keys
-            let data =d3.csvParse(reader.result, function(row){
+            data =d3.csvParse(reader.result, function(row){
                 //for each row quant data string to num 
                 for (let key in row){
                     if(!isNaN(+row[key]) && row[key] !== ""){
@@ -106,18 +112,18 @@ function initVis(_data){
 
     // y scalings for scatterplot
     // TODO: set y domain for each dimension
-    let y = d3.scaleLinear()
+    y = d3.scaleLinear()
         .range([height - margin.bottom - margin.top, margin.top]);
 
     // x scalings for scatter plot
     // TODO: set x domain for each dimension
-    let x = d3.scaleLinear()
+    x = d3.scaleLinear()
         .range([margin.left, width - margin.left - margin.right]);
 
     // radius scalings for radar chart
     // TODO: set radius domain for each dimension
-    let r = d3.scaleLinear()
-        .range([0, radius]);
+    r = d3.scaleLinear()
+        .range([3, 15]);
 
     // scatterplot axes
     yAxis = scatter.append("g")
@@ -161,11 +167,23 @@ function initVis(_data){
         .attr("x2", function(d, i){ return radarX(axisRadius(maxAxisRadius), i); })
         .attr("y2", function(d, i){ return radarY(axisRadius(maxAxisRadius), i); })
         .attr("class", "line")
-        .style("stroke", "black");
+        .style("stroke", "black")
+        
+        
+    radar.selectAll(".gridCircl")    
+        .data(d3.range(gridRadius, maxAxisRadius, gridRadius))
+        .enter()
+        .append("polygon")
+        .attr("points", function(d) {
+            return dimensions.map(function(dim,i){
+                return [radarX(axisRadius(d), i), radarY(axisRadius(d), i)].join(",");
+            }).join(" ");
 
-    // TODO: render grid lines in gray
+        })
+        .attr("class", "gridPolygon")
+        .style("fill", "none")
+        .style("stroke", "lightgray");
 
-    // TODO: render correct axes labels
     radar.selectAll(".axisLabel")
         .data(dimensions)
         .enter()
@@ -174,7 +192,7 @@ function initVis(_data){
         .attr("dy", "0.35em")
         .attr("x", function(d, i){ return radarX(axisRadius(textRadius), i); })
         .attr("y", function(d, i){ return radarY(axisRadius(textRadius), i); })
-        .text("dimension");
+        .text(function(d){ return d; });
 
     // init menu for the visual channels
     channels.forEach(function(c){
@@ -216,11 +234,40 @@ function CreateDataTable(_data) {
 }
 function renderScatterplot(){
 
-    // TODO: get domain names from menu and label x- and y-axis
+    //read menu selections
 
-    // TODO: re-render axes
+    let dimX= readMenu("scatterX");
+    let dimY= readMenu("scatterY");
+    let dimSize= readMenu("size"); 
 
-    // TODO: render dots
+    //set x,y,r scales
+    x.domain(d3.extent(data, function(d){ return d[dimX]; })).nice();
+    y.domain(d3.extent(data, function(d){ return d[dimY]; })).nice();
+    r.domain(d3.extent(data, function(d){ return d[dimSize]; })).nice();
+
+    //redraw axes
+    xAxis.call(d3.axisBottom(x));
+    yAxis.call(d3.axisLeft(y));
+
+    //update axis labels
+    xAxisLabel.text(dimX);
+    yAxisLabel.text(dimY);
+
+    //remove lld dots
+    scatter.selectAll(".dot").remove();
+
+    //draw one cicle per data
+    scatter.selectAll('.dot')
+        .data(data)
+        .enter()
+        .append('circle')
+        .attr('class', 'dot')
+        .attr('cx', function(d) { return x(d[dimX]); })
+        .attr('cy', function(d) { return y(d[dimY]); })
+        .attr('r', function(d) { return r(d[dimSize]); })
+        .style("fill", "#7F7F7F")
+        .style("opacity", 0.7);
+
 }
 
 function renderRadarChart(){
@@ -266,6 +313,13 @@ function refreshMenu(id){
 // read current scatterplot parameters
 function readMenu(id){
     return $( "#" + id ).val();
+    let dimX= readMenu("scatterX");
+    let dimY= readMenu("scatterY");
+    let dimSize= readMenu("size");
+
+    x.domain(d3.extent(data, function(d){ return d[dimX]; })).nice();
+    y.domain(d3.extent(data, function(d){ return d[dimY]; })).nice();
+    r.domain(d3.extent(data, function(d){ return d[dimSize]; })).nice();
 }
 
 // switches and displays the tabs
