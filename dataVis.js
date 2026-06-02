@@ -26,6 +26,11 @@ let margin, width, height, radius;
 // svg containers
 let scatter, radar, dataTable;
 
+// creating memory list for selected items in the radar chart
+let selectedItems = [];
+const MaxSelections = 8; // limit the number of selected items 
+const colorPalette = d3.schemeTableau10; // color palette for selected items - using 10 very distinct colors
+
 let x, y, r;
 let data;
 let tooltip;
@@ -265,14 +270,42 @@ function renderScatterplot(){
         .attr('cx', function(d) { return x(d[dimX]); })
         .attr('cy', function(d) { return y(d[dimY]); })
         .attr('r', function(d) { return r(d[dimSize]); })
-        .style("fill", "#7F7F7F")
-        .style("opacity", 0.7);
-
-}
+        .style("fill", function(d) { //now we dont return always grey, but check if item is selected in radar chart to assign color
+            let idx = selectedItems.indexOf(d); // check if item is selected in radar chart. In case it dont find it - returns -1
+            if (idx >= 0) return colorPalette[idx]; // assign color based on selection index
+            return "#7F7F7F"; // default color for non-selected items
+         })
+        .style("opacity", 0.7)
+        .on("click", function(event, d) { // attacj click listener. Every time the dot is being pressed, we check if the item is already selected in the radar chart. If not, we add it to the selection list and update the radar chart accordingly
+            if (selectedItems.includes(d)) return; // if the dot is already in the list, do nothing and exit function early
+            if (selectedItems.length >= MaxSelections) return; // if we reached the limit of selcted items - do nothing
+            selectedItems.push(d); // add the item to the end of the array (selected list)
+            d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]); // refers to the exact circle elmet that was clicked and updates its color based on the selection index
+            renderRadarChart(); // we use that to update the legend 
+    });
 
 function renderRadarChart(){
 
     // TODO: show selected items in legend
+    function renderRadarChart() {
+        // find the name column (the one that is not in dimensions)
+        let nameColumn = data.columns.find(col => !dimensions.includes(col)); 
+
+        // takes the legen
+        let legend = d3.select("#legend");
+        legend.html("<b>Legend:</b><br>");
+
+        SelectefItems.forEach(function(item, idx){
+            let entry = legend.append("div");
+
+            entry.append("span")
+                .attr("class", "color-circle")
+                .style("background-color", colorPalette[idx]);
+
+            entry.append("span")
+                .style("margin-left", "6px")
+                .text(item[nameColumn]);
+        });
 
     // TODO: render polylines in a unique color
 }
@@ -335,4 +368,5 @@ function openPage(pageName,elmnt,color) {
     }
     document.getElementById(pageName).style.display = "block";
     elmnt.style.backgroundColor = color;
+}
 }
