@@ -215,6 +215,7 @@ function initVis(_data){
 
 // clear visualizations before loading a new file
 function clear(){
+    selectedItems = []; // clear selection memory
     scatter.selectAll("*").remove();
     radar.selectAll("*").remove();
     dataTable.selectAll("*").remove();
@@ -278,34 +279,49 @@ function renderScatterplot(){
         .style("opacity", 0.7)
         .on("click", function(event, d) { // attacj click listener. Every time the dot is being pressed, we check if the item is already selected in the radar chart. If not, we add it to the selection list and update the radar chart accordingly
             if (selectedItems.includes(d)) return; // if the dot is already in the list, do nothing and exit function early
-            if (selectedItems.length >= MaxSelections) return; // if we reached the limit of selcted items - do nothing
-            selectedItems.push(d); // add the item to the end of the array (selected list)
+            if (selectedItems.filter(i => i !== null).length >= MaxSelections) return; // if we reached the limit of selcted items - do nothing. We filter the list to exclude the first item, which is often a label and not an actual data item
+            let slot = selectedItems.indexOf(null); // check if there is an empty slot in the selection list (i.e., null value). This allows us to reuse slots of deselected items and keep the color assignment consistent
+            if (slot >= 0) { // if there is an empty slot, we fill it with the new selection
+                selectedItems[slot] = d; // add the item to the first empty slot in the array (selected list)
+            } else {
+                selectedItems.push(d); // if there is no empty slot, we add the item to the end of the list (this should only happen for the first MaxSelection items)
+            }
             d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]); // refers to the exact circle elmet that was clicked and updates its color based on the selection index
-            renderRadarChart(); // we use that to update the legend 
-    });
+            renderRadarChart(); // we use that to update the legend
+        });
+}
 
 function renderRadarChart(){
 
-    // TODO: show selected items in legend
-    function renderRadarChart() {
-        // find the name column (the one that is not in dimensions)
-        let nameColumn = data.columns.find(col => !dimensions.includes(col)); 
+    // find the name column (the one that is not in dimensions)
+    let nameColumn = data.columns.find(col => !dimensions.includes(col));
 
-        // takes the legen
-        let legend = d3.select("#legend");
-        legend.html("<b>Legend:</b><br>");
+    // takes the legend div from the HTML
+    let legend = d3.select("#legend");
+    legend.html("<b>Legend:</b><br>");
 
-        SelectefItems.forEach(function(item, idx){
-            let entry = legend.append("div");
+    selectedItems.forEach(function(item, idx){
+        if (item === null) return; // skip empty slots in the selection list
 
-            entry.append("span")
-                .attr("class", "color-circle")
-                .style("background-color", colorPalette[idx]);
+        let entry = legend.append("div");
 
-            entry.append("span")
-                .style("margin-left", "6px")
-                .text(item[nameColumn]);
-        });
+        entry.append("span")
+            .attr("class", "color-circle")
+            .style("background-color", colorPalette[idx]);
+
+        entry.append("span")
+            .style("margin-left", "6px")
+            .text(item[nameColumn]);
+
+        entry.append("span") //
+            .attr("class", "close") // add button after the name
+            .text("x")
+            .on("click", function() { // we attach a click listener to the button
+                selectedItems[idx] = null; // replace this item with the null at its exact position. The slot still wont be removed - just empties that
+                renderScatterplot(); // update scatterplot to reflect deselection
+                renderRadarChart(); // update legend to reflect deselection
+            })
+    });
 
     // TODO: render polylines in a unique color
 }
@@ -369,4 +385,4 @@ function openPage(pageName,elmnt,color) {
     document.getElementById(pageName).style.display = "block";
     elmnt.style.backgroundColor = color;
 }
-}
+
