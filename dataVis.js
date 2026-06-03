@@ -28,7 +28,7 @@ let scatter, radar, dataTable;
 
 // creating memory list for selected items in the radar chart
 let selectedItems = [];
-const MaxSelections = 8; // limit the number of selected items 
+const MaxSelections = 5; // limit the number of selected items 
 const colorPalette = d3.schemeTableau10; // color palette for selected items - using 10 very distinct colors
 
 let x, y, r;
@@ -291,7 +291,6 @@ function renderScatterplot(){
         });
 }
 
-
 function renderRadarChart(){
 
     // find the name column (the one that is not in dimensions)
@@ -317,7 +316,7 @@ function renderRadarChart(){
         entry.append("span") //
             .attr("class", "close") // add button after the name
             .text("x")
-
+            
             .on("click", function() { // we attach a click listener to the button
                 selectedItems[idx] = null; // replace this item with the null at its exact position. The slot still wont be removed - just empties that
                 renderScatterplot(); // update scatterplot to reflect deselection
@@ -326,8 +325,43 @@ function renderRadarChart(){
     });
 
     // TODO: render polylines in a unique color
-}
+    // remove old radar lines and endpoint dots before redawing
+    radar.selectAll(".radarLine").remove();
 
+    // loop through all selected items
+    selectedItems.forEach(function(item, idx){
+        if (item === null) return; // skip empty slots in the selection list
+
+        //draw the polygon line connecting all dimension values for this item
+        radar.append("polygon")
+            .attr("class", "radarLine")
+            .attr("points", dimensions.map(function(dim, i){
+
+                let scale = d3.scaleLinear() // we create a temporary scale to map the value of this dimension for the current item to the radius of the radar chart
+                    .domain(d3.extent(data, function(d){ return d[dim]; })) // the domain is set to the extent of this dimension across all data items
+                    .range([0, radius * 0.75]); // the range is set to the maximum radius we want to use for the radar chart
+                return [radarX(scale(item[dim]), i), radarY(scale(item[dim]), i)].join(","); // we calculate the x and y coordinates for this dimension value using the radarX and radarY functions and return them as a string
+            }).join(" ")) // we join the coordinates for all dimensions into a single string that defines the points of the polygon
+            .style("fill", "none")
+            .style("stroke", colorPalette[idx]) // set stroke color based on selection index
+            .style("stroke-width", "2px") // set stroke width
+            .style("opacity", 0.8); // set opacity
+
+    // draw one small circle at each point where the line meets an axis
+    dimensions.forEach(function(dim, i){
+        let scale = d3.scaleLinear() // we create a temporary scale to map the value of this dimension for the current item to the radius of the radar chart
+            .domain(d3.extent(data, function(d){ return d[dim]; })) // the domain is set to the extent of this dimension across all data items
+            .range([0, radius * 0.75]); // the range is set to the maximum radius we want to use for the radar chart
+        radar.append("circle")
+            .attr("class", "radarLine")
+            .attr("cx", radarX(scale(item[dim]), i))
+            .attr("cy", radarY(scale(item[dim]), i))
+            .attr("r", 4)
+            .style("fill", colorPalette[idx]) // set fill color based on selection index
+    });
+
+});
+}
 
 function radarX(radius, index){
     return radius * Math.cos(radarAngle(index));
