@@ -316,6 +316,7 @@ function renderRadarChart(){
         entry.append("span") //
             .attr("class", "close") // add button after the name
             .text("x")
+            
             .on("click", function() { // we attach a click listener to the button
                 selectedItems[idx] = null; // replace this item with the null at its exact position. The slot still wont be removed - just empties that
                 renderScatterplot(); // update scatterplot to reflect deselection
