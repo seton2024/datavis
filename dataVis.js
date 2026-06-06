@@ -29,7 +29,7 @@ let scatter, radar, dataTable;
 // creating memory list for selected items in the radar chart
 let selectedItems = [];
 const MaxSelections = 5; // limit the number of selected items 
-const colorPalette = ["#8C6AB7", "#5A9D40", "#E58537", "#BB3A32", "#4976AF"]; // predefining a color palette for up to 5 selected items
+const colorPalette = ["#8A2CE1", "#008003", "#FFA503", "#FB0205", "#4976AF"]; // predefining a color palette for up to 5 selected items
 
 let x, y, r;
 let data;
@@ -55,9 +55,10 @@ function init() {
         .append("g");
 
     // tooltip
-    tooltip = d3.select("body").append("div")
+    tooltip = d3.select("body")
+        .append("div")
         .attr("class", "tooltip")
-        .style("opacity", 0);
+        .style("display", "none");
 
     // radar chart SVG container and axes
     radar = d3.select("#radar").append("svg")
@@ -118,17 +119,17 @@ function initVis(_data){
     // y scalings for scatterplot
     // TODO: set y domain for each dimension
     y = d3.scaleLinear()
-        .range([height - margin.bottom - margin.top, margin.top]);
+        .range([height - margin.bottom, margin.top]);
 
     // x scalings for scatter plot
     // TODO: set x domain for each dimension
     x = d3.scaleLinear()
-        .range([margin.left, width - margin.left - margin.right]);
+        .range([margin.left, width - margin.right]);
 
     // radius scalings for radar chart
     // TODO: set radius domain for each dimension
-    r = d3.scaleLinear()
-        .range([3, 15]);
+    r = d3.scaleSqrt()
+        .range([2, 12]);
 
     // scatterplot axes
     yAxis = scatter.append("g")
@@ -143,7 +144,7 @@ function initVis(_data){
 
     xAxis = scatter.append("g")
         .attr("class", "axis")
-        .attr("transform", "translate(0, " + (height - margin.bottom - margin.top) + ")")
+        .attr("transform", "translate(0, " + (height - margin.bottom) + ")")
         .call(d3.axisBottom(x));
 
     xAxisLabel = xAxis.append("text")
@@ -247,9 +248,21 @@ function renderScatterplot(){
     let dimSize= readMenu("size"); 
 
     //set x,y,r scales
-    x.domain(d3.extent(data, function(d){ return d[dimX]; })).nice();
-    y.domain(d3.extent(data, function(d){ return d[dimY]; })).nice();
-    r.domain(d3.extent(data, function(d){ return d[dimSize]; })).nice();
+    let xData = data.filter(function(d){ return typeof d[dimX] === "number"; });
+    let xMin = d3.min(xData, function(d){ return d[dimX]; });
+    let xMax = d3.max(xData, function(d){ return d[dimX]; });
+    x.domain([xMin, xMax + (xMax - xMin) * 0.1]);
+
+    let yData = data.filter(function(d){ return typeof d[dimY] === "number"; });
+    let yMin = d3.min(yData, function(d){ return d[dimY]; });
+    let yMax = d3.max(yData, function(d){ return d[dimY]; });
+    y.domain([yMin, yMax + (yMax - yMin) * 0.1]);
+
+    let rData = data.filter(function(d){ return typeof d[dimSize] === "number"; });
+    let rMin = d3.min(rData, function(d){ return d[dimSize]; });
+    let rMax = d3.max(rData, function(d){ return d[dimSize]; });
+    r.domain([rMin, rMax + (rMax - rMin) * 0.1]);
+
 
     //redraw axes
     xAxis.transition().duration(600).call(d3.axisBottom(x));
@@ -266,6 +279,19 @@ function renderScatterplot(){
     let dots = scatter.selectAll('.dot')
         .data(data)
         .join('circle')
+        .on('mouseover', function(event, d) {
+            let html = data.columns.map(function(col) {
+                return "<b>" + col + ":</b> " + d[col];
+            }).join("<br>");
+            tooltip.style("display", "block").html(html);
+        })
+        .on('mousemove', function(event) {
+            tooltip.style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        })
+        .on('mouseout', function() {
+            tooltip.style("display", "none");
+        })
         .attr('class', 'dot')
         .on('click', function(event, d) {
             let idx = selectedItems.indexOf(d);
@@ -282,8 +308,8 @@ function renderScatterplot(){
             } else {
                 selectedItems.push(d);
             }
-            d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]);
             renderRadarChart();
+            renderScatterplot();
         });
 
         // animation of all visual attributes
@@ -295,9 +321,11 @@ function renderScatterplot(){
             .style("fill", function(d) { // set fill color based on selection status
                 let idx = selectedItems.indexOf(d);
                 if (idx >= 0) return colorPalette[idx]; // if selected, use corresponding color from palette
-                return "#7F7F7F"; // if not selected, use default gray color
+                return "#000000"; // if not selected, use default gray color
             })
-            .style("opacity", 0.7);
+            .style("opacity", function(d) { // set opacity based on selection status
+                return selectedItems.indexOf(d) >= 0 ? 1 : 0.5;
+            });
 }
 
 function renderRadarChart(){
