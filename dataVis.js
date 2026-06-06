@@ -29,7 +29,7 @@ let scatter, radar, dataTable;
 // creating memory list for selected items in the radar chart
 let selectedItems = [];
 const MaxSelections = 5; // limit the number of selected items 
-const colorPalette = d3.schemeTableau10; // color palette for selected items - using 10 very distinct colors
+const colorPalette = ["#8C6AB7", "#5A9D40", "#E58537", "#BB3A32", "#4976AF"]; // predefining a color palette for up to 5 selected items
 
 let x, y, r;
 let data;
@@ -252,43 +252,47 @@ function renderScatterplot(){
     r.domain(d3.extent(data, function(d){ return d[dimSize]; })).nice();
 
     //redraw axes
-    xAxis.call(d3.axisBottom(x));
-    yAxis.call(d3.axisLeft(y));
+    xAxis.transition().duration(600).call(d3.axisBottom(x));
+    yAxis.transition().duration(600).call(d3.axisLeft(y));
 
     //update axis labels
     xAxisLabel.text(dimX);
     yAxisLabel.text(dimY);
 
     //remove lld dots
-    scatter.selectAll(".dot").remove();
+    // scatter.selectAll(".dot").remove();
 
     //draw one cicle per data
-    scatter.selectAll('.dot')
+    let dots = scatter.selectAll('.dot')
         .data(data)
-        .enter()
-        .append('circle')
+        .join('circle')
         .attr('class', 'dot')
-        .attr('cx', function(d) { return x(d[dimX]); })
-        .attr('cy', function(d) { return y(d[dimY]); })
-        .attr('r', function(d) { return r(d[dimSize]); })
-        .style("fill", function(d) { //now we dont return always grey, but check if item is selected in radar chart to assign color
-            let idx = selectedItems.indexOf(d); // check if item is selected in radar chart. In case it dont find it - returns -1
-            if (idx >= 0) return colorPalette[idx]; // assign color based on selection index
-            return "#7F7F7F"; // default color for non-selected items
-         })
-        .style("opacity", 0.7)
-        .on("click", function(event, d) { // attacj click listener. Every time the dot is being pressed, we check if the item is already selected in the radar chart. If not, we add it to the selection list and update the radar chart accordingly
-            if (selectedItems.includes(d)) return; // if the dot is already in the list, do nothing and exit function early
-            if (selectedItems.filter(i => i !== null).length >= MaxSelections) return; // if we reached the limit of selcted items - do nothing. We filter the list to exclude the first item, which is often a label and not an actual data item
-            let slot = selectedItems.indexOf(null); // check if there is an empty slot in the selection list (i.e., null value). This allows us to reuse slots of deselected items and keep the color assignment consistent
-            if (slot >= 0) { // if there is an empty slot, we fill it with the new selection
-                selectedItems[slot] = d; // add the item to the first empty slot in the array (selected list)
+        .on('click', function(event, d) { // add click listener to each dot
+            if (selectedItems.includes(d)) return; // prevent deselection by clicking on an already selected item
+            if (selectedItems.filter(i => i !== null).length >= MaxSelections) return; // prevent selection if max limit is reached
+            let slot = selectedItems.indexOf(null); // find the first empty slot in the selection list
+            // if there is an empty slot, place the new selection there; otherwise, add it to the end of the list
+            if (slot >= 0) { 
+                selectedItems[slot] = d;
             } else {
-                selectedItems.push(d); // if there is no empty slot, we add the item to the end of the list (this should only happen for the first MaxSelection items)
+                selectedItems.push(d);
             }
-            d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]); // refers to the exact circle elmet that was clicked and updates its color based on the selection index
-            renderRadarChart(); // we use that to update the legend
+            d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]); // change color of selected dot
+            renderRadarChart(); // update radar chart to reflect new selection
         });
+
+        // animation of all visual attributes
+        dots.transition()
+            .duration(600) // we set a duration 600 ms for the transition to make it smooth
+            .attr('cx', function(d){ return x(d[dimX]); }) // update the x and y coordinates as well as the radius of each dot based on the current menu selections and the corresponding scales
+            .attr('cy', function(d){ return y(d[dimY]); }) // we use the x and y scales to map the data values for the selected dimensions to pixel coordinates on the scatterplot
+            .attr('r', function(d){ return r(d[dimSize]); }) // we use the r scale to map the data values for the selected size dimension to circle radii
+            .style("fill", function(d) { // set fill color based on selection status
+                let idx = selectedItems.indexOf(d);
+                if (idx >= 0) return colorPalette[idx]; // if selected, use corresponding color from palette
+                return "#7F7F7F"; // if not selected, use default gray color
+            })
+            .style("opacity", 0.7);
 }
 
 function renderRadarChart(){
