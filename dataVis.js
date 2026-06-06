@@ -267,18 +267,23 @@ function renderScatterplot(){
         .data(data)
         .join('circle')
         .attr('class', 'dot')
-        .on('click', function(event, d) { // add click listener to each dot
-            if (selectedItems.includes(d)) return; // prevent deselection by clicking on an already selected item
-            if (selectedItems.filter(i => i !== null).length >= MaxSelections) return; // prevent selection if max limit is reached
-            let slot = selectedItems.indexOf(null); // find the first empty slot in the selection list
-            // if there is an empty slot, place the new selection there; otherwise, add it to the end of the list
-            if (slot >= 0) { 
+        .on('click', function(event, d) {
+            let idx = selectedItems.indexOf(d);
+            if (idx >= 0) { // second click: deselect
+                selectedItems[idx] = null;
+                renderScatterplot();
+                renderRadarChart();
+                return;
+            }
+            if (selectedItems.filter(i => i !== null).length >= MaxSelections) return;
+            let slot = selectedItems.indexOf(null);
+            if (slot >= 0) {
                 selectedItems[slot] = d;
             } else {
                 selectedItems.push(d);
             }
-            d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]); // change color of selected dot
-            renderRadarChart(); // update radar chart to reflect new selection
+            d3.select(this).style("fill", colorPalette[selectedItems.indexOf(d)]);
+            renderRadarChart();
         });
 
         // animation of all visual attributes
